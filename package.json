@@ -1,0 +1,34 @@
+{
+  "name": "@psocket/client",
+  "version": "0.0.1-beta",
+  "description": "A library to easily interact with PSocket servers from the client.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx ./bundle.ts --development",
+    "build": "tsx ./bundle.ts && tsc --emitDeclarationOnly",
+    "pretty": "prettier --write ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/P-Socket/Client.git"
+  },
+  "author": "Cohen Erickson",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/P-Socket/Client/issues"
+  },
+  "homepage": "https://github.com/P-Socket/Client#readme",
+  "dependencies": {
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@trivago/prettier-plugin-sort-imports": "^4.2.0",
+    "@types/node": "^20.6.0",
+    "@types/uuid": "^9.0.3",
+    "esbuild": "^0.19.2",
+    "tsx": "^3.12.9",
+    "typescript": "^5.2.2"
+  }
+}
