@@ -54,9 +54,9 @@ export type PSocketRequest = {
   /**
    * This value is used by the server to determine what kind of action is being completed.
    *
-   * This value may be one of four different values for requests and responses.
+   * This value may be one of seven different values.
    *
-   * `"request" | "response" | "message" | "error"`
+   * ``"request" | "response" | "connect" | "open" | "close" | "message" | "error"`
    */
   type: "request";
   /**
@@ -95,9 +95,9 @@ export type PSocketResponse = {
   /**
    * This value is used by the client to determine what kind of action is being completed.
    *
-   * This value may be one of four different values for requests and responses.
+   * This value may be one of seven different values.
    *
-   * `"request" | "response" | "message" | "error"`
+   * ``"request" | "response" | "connect" | "open" | "close" | "message" | "error"`
    */
   type: "response";
   /**
@@ -136,9 +136,9 @@ export type PSocketMessage = {
   /**
    * This value is used by the client and server to determine what kind of action is being completed.
    *
-   * This value may be one of four different values for requests and responses.
+   * This value may be one of seven different values.
    *
-   * `"request" | "response" | "message" | "error"`
+   * ``"request" | "response" | "connect" | "open" | "close" | "message" | "error"`
    */
   type: "message";
   /**
@@ -153,8 +153,95 @@ export type PSocketMessage = {
   dataType: "text" | "binary";
 };
 
-export type PSocketError = {
+export type PSocketConnect = {
+  /**
+   * The 32 character HEX string identifying the response.
+   */
   id: string;
+  /**
+   * This value is used by the client and server to determine what kind of action is being completed.
+   *
+   * This value may be one of seven different values.
+   *
+   * ``"request" | "response" | "connect" | "open" | "close" | "message" | "error"`
+   */
+  type: "connect";
+  /**
+   * The final URL provided by the response.
+   *
+   * This may differ from the request URL if the server redirected the request.
+   */
+  url: string;
+  /**
+   * The protocols to be used when connecting to the remote.
+   */
+  protocols: number;
+  /**
+   * Headers to be sent to the remote.
+   *
+   * Note that no other headers apart from what is specified here will be sent to the remote.
+   */
+  headers: Record<string, string>;
+};
+
+export type PSocketOpen = {
+  /**
+   * The 32 character HEX string identifying the response.
+   */
+  id: string;
+  /**
+   * This value is used by the client and server to determine what kind of action is being completed.
+   *
+   * This value may be one of seven different values.
+   *
+   * ``"request" | "response" | "connect" | "open" | "close" | "message" | "error"`
+   */
+  type: "open";
+  /**
+   * The final URL provided by the response.
+   *
+   * This may differ from the request URL if the server redirected the request.
+   */
+  url: string;
+  /**
+   * Headers to be sent to the remote.
+   *
+   * Note that no other headers apart from what is specified here will be sent to the remote.
+   */
+  headers: Record<string, string>;
+};
+
+export type PSocketClose = {
+  /**
+   * The 32 character HEX string identifying the response.
+   */
+  id: string;
+  /**
+   * This value is used by the client and server to determine what kind of action is being completed.
+   *
+   * This value may be one of seven different values.
+   *
+   * `"request" | "response" | "connect" | "open" | "close" | "message" | "error"`
+   */
+  type: "close";
+  /**
+   * The reason for closing the connection.
+   */
+  reason: string;
+};
+
+export type PSocketError = {
+  /**
+   * The 32 character HEX string identifying the response.
+   */
+  id: string;
+  /**
+   * This value is used by the client and server to determine what kind of action is being completed.
+   *
+   * This value may be one of seven different values.
+   *
+   * ``"request" | "response" | "connect" | "open" | "close" | "message" | "error"`
+   */
   type: "error";
   code: string;
   key: string;
@@ -165,4 +252,7 @@ export type PSocketPacket =
   | PSocketRequest
   | PSocketResponse
   | PSocketMessage
-  | PSocketError;
+  | PSocketError
+  | PSocketConnect
+  | PSocketOpen
+  | PSocketClose;

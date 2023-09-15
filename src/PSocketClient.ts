@@ -11,10 +11,7 @@ type Options = {
   url: string;
 };
 
-const META_BYTES = 18;
-
 export class PSocketClient {
-  ws?: WebSocket;
   #responseQueue: Record<
     string,
     {
@@ -23,17 +20,51 @@ export class PSocketClient {
       resolve: (response: Response) => void;
       reject: (reason?: any) => void;
       response?: PSocketResponse;
+      timeout: NodeJS.Timeout;
     }
   > = {};
+  #connections: Record<
+    string,
+    {
+      resolve: (ws: WebSocket) => void;
+      reject: (reason?: any) => void;
+    }
+  > = {};
+  /**
+   * The URL of the server to connect to.
+   */
   url: string;
-  meta?: PSocketMeta;
+  /**
+   * A promise that resolves when the client is ready to send requests.
+   */
   ready: Promise<void>;
+  /**
+   * The meta object recieved from the server.
+   */
+  meta?: PSocketMeta;
+  /**
+   * The websocket connection to the server.
+   */
+  ws?: WebSocket;
+
+  static META_BYTES = 18;
 
   constructor(options: Options) {
     this.ready = this.#init();
     this.url = options.url;
   }
 
+  /**
+   * Request a remote resource.
+   * @param input The URL or Request object to request.
+   * @param init The options to use when making the request.
+   * @returns A promise that resolves with the response.
+   *
+   * @throws If the url is invalid.
+   * @throws If the body is too large.
+   * @throws If the server responds with an error.
+   * @throws If the request times out.
+   */
   fetch(input: string | Request | URL, init?: RequestInit): Promise<Response> {
     return new Promise<Response>(async (resolve, reject) => {
       await this.ready;
@@ -62,7 +93,7 @@ export class PSocketClient {
 
       this.ws!.send(JSON.stringify(pRequest));
 
-      const usableBytes = this.meta!.maxPacketSize - META_BYTES;
+      const usableBytes = this.meta!.maxPacketSize - PSocketClient.META_BYTES;
 
       if (body !== undefined) {
         const packets = Math.ceil(body.byteLength / usableBytes);
@@ -91,14 +122,54 @@ export class PSocketClient {
         ),
         request: pRequest,
         resolve,
-        reject
+        reject,
+        timeout: setTimeout(
+          () => {
+            if (this.#responseQueue[pRequest.id]) {
+              delete this.#responseQueue[pRequest.id];
+              reject(new Error("Request timed out."));
+            }
+          },
+          this.meta?.requestTimeout
+        )
       };
     });
   }
 
-  connect(): Promise<WebSocket> {
-    return new Promise<WebSocket>((resolve, reject) => {
-      reject();
+  /**
+   * Create a remote websocket connection.
+   *
+   * @param url The URL to connect to.
+   * @param protocols The protocols to forward to the remote.
+   *
+   * @returns A promise that resolves with the websocket connection.
+   *
+   * @throws If the url is invalid.
+   * @throws If the connection fails.
+   * @throws If the server responds with an error.
+   */
+  connect(
+    url: string | URL,
+    protocols: string[],
+    headers: HeadersInit
+  ): Promise<WebSocket> {
+    return new Promise<WebSocket>(async (resolve, reject) => {
+      await this.ready;
+
+      const pConnect = {
+        id: v4().replace(/-/g, ""),
+        type: "connect",
+        url: url.toString(),
+        headers,
+        protocols
+      };
+
+      this.ws!.send(JSON.stringify(pConnect));
+
+      this.#connections[pConnect.id] = {
+        resolve,
+        reject
+      };
     });
   }
 
@@ -112,11 +183,13 @@ export class PSocketClient {
         case "response":
           const request = this.#responseQueue[message.id];
 
-          if (!request) throw new Error("Matching request not found.");
+          if (!request) return;
 
           request.response = message;
 
           if (!message.body) {
+            clearTimeout(request.timeout);
+
             request.resolve(
               new PResponse(message.url, {
                 status: message.status,
@@ -125,6 +198,17 @@ export class PSocketClient {
               })
             );
           }
+
+          break;
+        case "open":
+          const connection = this.#connections[message.id];
+
+          // TODO: find way to call connection.resolve with a WebSocket object
+
+          break;
+        case "close":
+
+          // TODO: WebSockets
 
           break;
         case "message":
@@ -161,6 +245,8 @@ export class PSocketClient {
           body.set(chunk, offset);
           offset += chunk.byteLength;
         }
+
+        clearTimeout(request.timeout);
 
         request.resolve(
           new PResponse(request.request.url, {
